@@ -45,7 +45,7 @@ Regla del sistema: los flujos vendedor y comprador nunca se mezclan.
 - idrive-read-url — lectura firmada 6 h (folio+token del comprador o sesión de asesor)
 - aviso-privacidad-comprador — registro de aceptación (MN-EXPC-2026-06)
 
-## Prueba de punta a punta
+## Prueba de punta a punta 
 
 1. Sube el index.html nuevo de la intranet (entregado junto con esto).
 2. Abre la ficha de un comprador con Conversión = Apartado.
