@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Expediente del Comprador · Método NERI</title>
+<!--
+  ═══════════════════════════════════════════════════════════════
+  PORTAL DE CARGA DOCUMENTAL DEL COMPRADOR · Método NERI
+  Proyecto independiente del expediente del propietario
+  (regla inviolable: los flujos vendedor y comprador no se mezclan).
+
+  Acceso: /?folio=NERI-XX-...&token=...   (link generado por la intranet)
+
+  Endpoints (mismo proyecto Vercel):
+    GET  /api/comprador-expediente               portero (folio+token)
+    GET  /api/expediente-comprador-documentos    checklist del folio
+    POST /api/upload-idrive-url                  PUT firmado a iDrive e2
+    POST /api/expediente-comprador-documentos    registro de cada subida
+    POST /api/aviso-privacidad-comprador         aceptación de privacidad
+    GET  /api/idrive-read-url                    lectura temporal (6 h)
+  ═══════════════════════════════════════════════════════════════
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital@0;1&family=Montserrat:wght@300;400;600;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --obsidian:#0A0A0A; --surface:#111110; --surface2:#161614;
+  --gold:#C6A86B; --gold2:#C9A96E; --goldbdr:rgba(198,168,107,.32); --golddim:rgba(198,168,107,.08);
+  --white:#F5F2EC; --w80:rgba(245,242,236,.8); --w55:rgba(245,242,236,.55); --w40:rgba(245,242,236,.4); --w25:rgba(245,242,236,.25);
+  --border:rgba(245,242,236,.1); --green:#4ade80; --red:#f87171; --amber:#fbbf24;
+  --display:'Bebas Neue',sans-serif; --serif:'Cormorant Garamond',Georgia,serif; --sans:'Montserrat',sans-serif; --mono:'DM Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--obsidian);color:var(--white);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh}
+.wrap{max-width:680px;margin:0 auto;padding:0 18px 60px}
+
+/* ── encabezado ── */
+.topbar{padding:22px 0 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{font-family:var(--display);font-size:20px;letter-spacing:2.5px;color:var(--gold)}
+.brand span{color:var(--w55)}
+.folio-chip{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--w55);border:1px solid var(--border);border-radius:3px;padding:5px 9px}
+.hero{padding:30px 0 22px}
+.hero-eyebrow{font-size:10px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:800;margin-bottom:10px}
+.hero-title{font-family:var(--display);font-size:42px;line-height:.95;letter-spacing:.5px}
+.hero-title em{font-style:normal;color:var(--gold)}
+.hero-sub{font-family:var(--serif);font-style:italic;font-size:16px;color:var(--w55);margin-top:12px;max-width:520px}
+.hero-meta{margin-top:16px;display:grid;gap:6px}
+.hero-meta div{font-size:11px;color:var(--w55)}
+.hero-meta b{color:var(--w80);font-weight:600}
+
+/* ── progreso ── */
+.progress-box{border:1px solid var(--goldbdr);border-top:2px solid var(--gold);background:var(--golddim);border-radius:3px;padding:16px 18px;margin-bottom:22px}
+.progress-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.progress-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:800}
+.progress-num{font-family:var(--display);font-size:24px;letter-spacing:1px}
+.progress-track{height:3px;background:rgba(245,242,236,.12);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:var(--gold);width:0%;transition:width .5s ease}
+.progress-note{font-size:11px;color:var(--w55);margin-top:10px;line-height:1.55}
+
+/* ── documentos ── */
+.sec-label{font-size:10px;letter-spacing:2.2px;text-transform:uppercase;color:var(--w40);font-weight:800;margin:26px 0 12px}
+.doc{border:1px solid var(--border);background:var(--surface);border-radius:3px;padding:16px;margin-bottom:10px}
+.doc.estado-Validado{border-color:rgba(74,222,128,.3)}
+.doc.estado-Rechazado{border-color:rgba(248,113,113,.35)}
+.doc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.doc-tipo{font-size:13px;font-weight:600;color:var(--white);line-height:1.4}
+.doc-critico{display:inline-block;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:800;margin-left:6px}
+.doc-desc{font-size:11px;color:var(--w55);margin-top:5px;line-height:1.55}
+.pill{flex-shrink:0;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;font-weight:800;border-radius:3px;padding:5px 9px;border:1px solid var(--border);color:var(--w55);white-space:nowrap}
+.pill.Pendiente{border-color:var(--border);color:var(--w55)}
+.pill.Recibido{border-color:rgba(251,191,36,.35);color:var(--amber)}
+.pill.Validado{border-color:rgba(74,222,128,.35);color:var(--green)}
+.pill.Rechazado{border-color:rgba(248,113,113,.4);color:var(--red)}
+.doc-motivo{margin-top:10px;border:1px solid rgba(248,113,113,.3);background:rgba(248,113,113,.06);border-radius:3px;padding:9px 11px;font-size:11px;color:var(--w80);line-height:1.55}
+.doc-motivo b{color:var(--red);font-weight:700;display:block;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:3px}
+.doc-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.btn{font-family:var(--sans);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;font-weight:800;padding:10px 16px;border-radius:3px;cursor:pointer;border:1px solid var(--goldbdr);background:transparent;color:var(--gold);transition:background .15s}
+.btn:hover{background:var(--golddim)}
+.btn.gold{background:var(--gold);color:#0A0A0A;border-color:var(--gold)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn-ver{font-size:10px;letter-spacing:1px;color:var(--w55);text-decoration:underline;text-underline-offset:3px;background:none;border:none;cursor:pointer;padding:6px 2px}
+.doc-file{font-family:var(--mono);font-size:10px;color:var(--w40);margin-top:8px;word-break:break-all}
+.doc-uploading{font-size:11px;color:var(--gold);margin-top:10px}
+
+/* ── pantallas de estado ── */
+.gate{padding:70px 0;text-align:center}
+.gate-title{font-family:var(--display);font-size:34px;letter-spacing:1px;margin-bottom:10px}
+.gate-sub{font-size:12px;color:var(--w55);max-width:420px;margin:0 auto;line-height:1.7}
+
+/* ── aviso de privacidad ── */
+.privacy{position:fixed;inset:0;background:var(--obsidian);z-index:50;overflow:auto;display:none}
+.privacy.on{display:block}
+.privacy-inner{max-width:620px;margin:0 auto;padding:40px 18px 60px}
+.privacy-title{font-family:var(--display);font-size:34px;letter-spacing:1px;margin-bottom:6px}
+.privacy-version{font-family:var(--mono);font-size:10px;color:var(--w40);margin-bottom:20px}
+.privacy-body{font-size:12px;color:var(--w80);line-height:1.8}
+.privacy-body p{margin-bottom:14px}
+.privacy-actions{margin-top:26px}
+footer{margin-top:46px;padding-top:18px;border-top:1px solid var(--border);font-size:10px;color:var(--w25);letter-spacing:.5px;line-height:1.7}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--goldbdr);border-radius:3px;color:var(--white);font-size:12px;padding:12px 18px;transition:transform .25s ease;z-index:90;max-width:92vw}
+.toast.on{transform:translateX(-50%) translateY(0)}
+@media(max-width:480px){.hero-title{font-size:34px}.doc-head{flex-direction:column}.pill{align-self:flex-start}}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app" style="display:none">
+  <div class="topbar">
+    <div class="brand">MÉTODO <span>NERI</span></div>
+    <div class="folio-chip" id="chipFolio">—</div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-eyebrow">Expediente documental · Comprador</div>
+    <div class="hero-title">TU COMPRA, <em>EN ORDEN</em></div>
+    <div class="hero-sub">Cada documento que cargas aquí acerca tu operación al cierre. Tu asesor revisa y valida en el mismo lugar — sin perseguir nada por mensajes.</div>
+    <div class="hero-meta">
+      <div>Comprador: <b id="metaNombre">—</b></div>
+      <div id="metaPropWrap" style="display:none">Propiedad: <b id="metaProp">—</b></div>
+      <div id="metaAsesorWrap" style="display:none">Asesor responsable: <b id="metaAsesor">—</b></div>
+    </div>
+  </div>
+
+  <div class="progress-box">
+    <div class="progress-head">
+      <div class="progress-label">Avance del expediente</div>
+      <div class="progress-num" id="progNum">0 / 0</div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progFill"></div></div>
+    <div class="progress-note" id="progNote">Carga tus documentos en PDF o foto legible. Los marcados como esenciales destraban primero la operación.</div>
+  </div>
+
+  <div class="sec-label">Documentos solicitados</div>
+  <div id="docs"></div>
+
+  <footer>
+    Método NERI · Expediente documental del comprador.<br>
+    Proceso privado para seguimiento, auditoría y mejora continua.
+  </footer>
+</div>
+
+<!-- Pantalla de error / link inválido -->
+<div class="wrap gate" id="gateError" style="display:none">
+  <div class="gate-title">LINK NO VÁLIDO</div>
+  <div class="gate-sub" id="gateErrorMsg">El enlace puede haber expirado o ser incorrecto. Contacta a tu asesor para que te comparta uno nuevo.</div>
+</div>
+
+<!-- Pantalla de carga -->
+<div class="wrap gate" id="gateLoading">
+  <div class="gate-title" style="color:var(--gold)">CARGANDO…</div>
+  <div class="gate-sub">Verificando tu expediente.</div>
+</div>
+
+<!-- Aviso de privacidad -->
+<div class="privacy" id="privacy">
+  <div class="privacy-inner">
+    <div class="privacy-title">AVISO DE <span style="color:var(--gold)">PRIVACIDAD</span></div>
+    <div class="privacy-version" id="privacyVersion">MN-EXPC-2026-06</div>
+    <div class="privacy-body">
+      <p>Los documentos que cargues en este portal se utilizan exclusivamente para integrar el expediente de tu operación de compra: verificación de identidad, preparación de contratos y trámites ante notaría y, en su caso, instituciones de crédito.</p>
+      <p>Tus archivos se almacenan en un repositorio privado con acceso restringido. Solo tu asesor responsable y el personal directamente involucrado en tu operación pueden consultarlos.</p>
+      <p>No compartimos tu información con terceros ajenos a la operación. Puedes solicitar la corrección o eliminación de tus datos contactando a tu asesor.</p>
+      <p>Al continuar, confirmas que leíste este aviso y autorizas el tratamiento de tus documentos para los fines descritos.</p>
+    </div>
+    <div class="privacy-actions">
+      <button class="btn gold" id="btnPrivacy" onclick="aceptarPrivacidad()">Acepto y continúo</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.heic,.webp,application/pdf,image/*" style="display:none">
+<div class="toast" id="toast"></div>
+
+<script>
+const CONFIG = {
+  ENDPOINT_LEAD:    "/api/comprador-expediente",
+  ENDPOINT_DOCS:    "/api/expediente-comprador-documentos",
+  ENDPOINT_PRESIGN: "/api/upload-idrive-url",
+  ENDPOINT_PRIVACY: "/api/aviso-privacidad-comprador",
+  ENDPOINT_READ:    "/api/idrive-read-url",
+  PRIVACY_VERSION:  "MN-EXPC-2026-06",
+  MAX_FILE_MB: 50,
+  ALLOWED_EXT: ["pdf","jpg","jpeg","png","heic","webp"],
+};
+
+// Checklist base: el portal funciona aunque la tabla aún no exista en Airtable
+const FALLBACK_DOCS = [
+  { id:"ine",               tipo:"Identificación Oficial (INE)",                descripcion:"Identificación vigente del comprador, ambos lados.",            estado:"Pendiente", critico:true },
+  { id:"curp",              tipo:"CURP",                                        descripcion:"Constancia CURP actualizada (formato verde).",                  estado:"Pendiente", critico:true },
+  { id:"constancia_fiscal", tipo:"Constancia de Situación Fiscal",              descripcion:"Emitida por el SAT, con RFC y domicilio fiscal.",               estado:"Pendiente", critico:true },
+  { id:"domicilio",         tipo:"Comprobante de Domicilio",                    descripcion:"No mayor a 3 meses (luz, agua, teléfono o estado de cuenta).",  estado:"Pendiente", critico:true },
+  { id:"acta_nacimiento",   tipo:"Acta de Nacimiento",                          descripcion:"Copia legible del acta de nacimiento.",                         estado:"Pendiente", critico:false },
+  { id:"acta_matrimonio",   tipo:"Acta de Matrimonio / Régimen Matrimonial",    descripcion:"Aplica cuando la situación civil lo requiere.",                 estado:"Pendiente", critico:false },
+  { id:"ingresos",          tipo:"Comprobante de Ingresos / Estados de Cuenta", descripcion:"Últimos 3 meses; prepara el camino del crédito.",               estado:"Pendiente", critico:false },
+];
+
+const params = new URLSearchParams(location.search);
+const FOLIO = (params.get("folio")||"").trim();
+const TOKEN = (params.get("token")||"").trim();
+let DOCS = [];
+let uploadingDocId = null;
+
+/* ── arranque ── */
+(async function init(){
+  if(!FOLIO || !TOKEN) return showError("Falta el folio o el token en el enlace.");
+  try{
+    const r = await fetch(CONFIG.ENDPOINT_LEAD + "?folio=" + encodeURIComponent(FOLIO) + "&token=" + encodeURIComponent(TOKEN));
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok || !d.ok) return showError(d.error || "No pudimos verificar tu expediente.");
+
+    document.getElementById("chipFolio").textContent = FOLIO;
+    document.getElementById("metaNombre").textContent = d.nombre || "—";
+    if(d.propiedad){ document.getElementById("metaProp").textContent = d.propiedad; document.getElementById("metaPropWrap").style.display="block"; }
+    if(d.asesor){ document.getElementById("metaAsesor").textContent = d.asesor; document.getElementById("metaAsesorWrap").style.display="block"; }
+
+    await loadDocs();
+    document.getElementById("gateLoading").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    if(!d.aviso_aceptado) document.getElementById("privacy").classList.add("on");
+  }catch(e){
+    showError("No pudimos conectar con el sistema. Intenta de nuevo en unos minutos.");
+  }
+})();
+
+function showError(msg){
+  document.getElementById("gateLoading").style.display = "none";
+  document.getElementById("gateErrorMsg").textContent = msg;
+  document.getElementById("gateError").style.display = "block";
+}
+
+/* ── aviso de privacidad ── */
+async function aceptarPrivacidad(){
+  const btn = document.getElementById("btnPrivacy");
+  btn.disabled = true; btn.textContent = "Registrando…";
+  try{
+    await fetch(CONFIG.ENDPOINT_PRIVACY, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ folio:FOLIO, token:TOKEN, version:CONFIG.PRIVACY_VERSION })
+    });
+  }catch(e){ /* el portal sigue: la aceptación se reintenta en la próxima visita */ }
+  document.getElementById("privacy").classList.remove("on");
+}
+
+/* ── documentos ── */
+async function loadDocs(){
+  try{
+    const r = await fetch(CONFIG.ENDPOINT_DOCS + "?folio=" + encodeURIComponent(FOLIO) + "&token=" + encodeURIComponent(TOKEN));
+    const d = await r.json().catch(()=>({}));
+    DOCS = (r.ok && Array.isArray(d.documents) && d.documents.length) ? d.documents : FALLBACK_DOCS.map(x=>({...x}));
+  }catch(e){
+    DOCS = FALLBACK_DOCS.map(x=>({...x}));
+  }
+  render();
+}
+
+function render(){
+  const box = document.getElementById("docs");
+  box.innerHTML = DOCS.map(d => {
+    const estado = d.estado || "Pendiente";
+    const puedeSubir = estado === "Pendiente" || estado === "Rechazado";
+    const subiendo = uploadingDocId === d.id;
+    return `<div class="doc estado-${estado}">
+      <div class="doc-head">
+        <div>
+          <div class="doc-tipo">${esc(d.tipo)}${d.critico ? '<span class="doc-critico">· Esencial</span>' : ''}</div>
+          <div class="doc-desc">${esc(d.descripcion||"")}</div>
+        </div>
+        <div class="pill ${estado}">${estado}</div>
+      </div>
+      ${estado==="Rechazado" && d.motivo_rechazo ? `<div class="doc-motivo"><b>Motivo del rechazo</b>${esc(d.motivo_rechazo)}</div>` : ""}
+      ${d.archivo_url ? `<div class="doc-file">${esc(d.filename || nombreDeUrl(d.archivo_url))}</div>` : ""}
+      <div class="doc-actions">
+        ${subiendo ? `<div class="doc-uploading">Subiendo archivo… no cierres esta pantalla.</div>` : `
+          ${puedeSubir ? `<button class="btn ${estado==="Rechazado"?"gold":""}" onclick="pedirArchivo('${esc(d.id)}')">${estado==="Rechazado"?"Volver a subir":"Subir archivo"}</button>` : ""}
+          ${d.archivo_url ? `<button class="btn-ver" onclick="verArchivo('${escAttr(d.archivo_url)}')">Ver archivo</button>` : ""}
+        `}
+      </div>
+    </div>`;
+  }).join("");
+
+  const total = DOCS.length;
+  const listos = DOCS.filter(d => ["Recibido","Validado"].includes(d.estado)).length;
+  document.getElementById("progNum").textContent = listos + " / " + total;
+  document.getElementById("progFill").style.width = total ? Math.round(listos/total*100) + "%" : "0%";
+  document.getElementById("progNote").textContent = listos >= total
+    ? "Expediente completo. Tu asesor está revisando los documentos."
+    : "Carga tus documentos en PDF o foto legible. Los marcados como esenciales destraban primero la operación.";
+}
+
+/* ── subida ── */
+function pedirArchivo(docId){
+  uploadingDocId = null;
+  const input = document.getElementById("fileInput");
+  input.value = "";
+  input.onchange = () => { if(input.files && input.files[0]) subir(docId, input.files[0]); };
+  input.click();
+}
+
+async function subir(docId, file){
+  const ext = (file.name.split(".").pop()||"").toLowerCase();
+  if(!CONFIG.ALLOWED_EXT.includes(ext)) return toast("Formato no permitido. Usa PDF o imagen (JPG, PNG, HEIC, WEBP).");
+  if(file.size > CONFIG.MAX_FILE_MB*1024*1024) return toast("El archivo supera " + CONFIG.MAX_FILE_MB + " MB.");
+
+  uploadingDocId = docId; render();
+  try{
+    // 1) URL firmada
+    const p = await fetch(CONFIG.ENDPOINT_PRESIGN, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ folio:FOLIO, token:TOKEN, doc:docId, filename:file.name, contentType:file.type || "application/pdf", size:file.size })
+    });
+    const pd = await p.json().catch(()=>({}));
+    if(!p.ok || !pd.uploadUrl) throw new Error(pd.error || "No se pudo preparar la subida.");
+
+    // 2) PUT directo a iDrive
+    const up = await fetch(pd.uploadUrl, { method:"PUT", headers: pd.headers || { "Content-Type": file.type }, body: file });
+    if(!up.ok) throw new Error("La subida del archivo falló. Intenta de nuevo.");
+
+    // 3) Registrar en el expediente
+    const doc = DOCS.find(x => x.id === docId);
+    const reg = await fetch(CONFIG.ENDPOINT_DOCS, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        action:"documento_recibido", folio:FOLIO, token:TOKEN,
+        document_id:docId, tipo_documento:(doc && doc.tipo) || docId,
+        archivo_url: pd.url, filename:file.name, uploaded_at:new Date().toISOString()
+      })
+    });
+    const rd = await reg.json().catch(()=>({}));
+    if(!reg.ok) throw new Error(rd.error || "El archivo subió pero no se pudo registrar. Avísale a tu asesor.");
+
+    toast("Documento recibido. Tu asesor lo revisará.");
+    uploadingDocId = null;
+    await loadDocs();
+  }catch(e){
+    uploadingDocId = null; render();
+    toast(e.message || "No se pudo subir el documento.");
+  }
+}
+
+/* ── ver archivo (lectura firmada 6 h) ── */
+function verArchivo(url){
+  const u = CONFIG.ENDPOINT_READ + "?url=" + encodeURIComponent(url) + "&folio=" + encodeURIComponent(FOLIO) + "&token=" + encodeURIComponent(TOKEN);
+  window.open(u, "_blank");
+}
+
+/* ── utilidades ── */
+function esc(v){ return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function escAttr(v){ return esc(v).replace(/'/g,"&#39;"); }
+function nombreDeUrl(u){ try{ return decodeURIComponent(String(u).split("/").pop()||""); }catch(e){ return ""; } }
+let toastT = null;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("on"), 4200);
+}
+</script>
+</body>
+</html>
